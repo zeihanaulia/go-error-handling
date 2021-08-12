@@ -1,50 +1,35 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
+
+	"github.com/zeihanaulia/go-error-handling/pkg/handler"
 )
 
-func indexHandler(rw http.ResponseWriter, r *http.Request) {
-	var resp Response
-
+func indexHandler(rw http.ResponseWriter, r *http.Request) error {
+	// simulate error
 	if r.URL.Query().Get("err") == "yes" {
-		resp.Errors.Code = http.StatusText(http.StatusInternalServerError)
-		resp.Errors.Message = "something when wrong"
-		data, _ := json.Marshal(resp)
-		rw.Header().Set("Content-Type", "application/json; charset=utf-8")
-		rw.WriteHeader(http.StatusOK)
-		rw.Write(data)
-		return
+		return handler.StatusError{Code: http.StatusInternalServerError, Err: errors.New("internal server error")}
 	}
 
-	resp.Data.Method = r.Method
-	resp.Data.Status = "ok"
-	data, _ := json.Marshal(resp)
-	rw.Header().Set("Content-Type", "application/json; charset=utf-8")
-	rw.WriteHeader(http.StatusOK)
-	rw.Write(data)
+	var resp SuccessRespose
+	resp.Method = r.Method
+	resp.Status = "ok"
+
+	handler.RenderJSON(resp, rw)
+	return nil
 }
 
-type Response struct {
-	Data   Data   `json:"data,omitempty"`
-	Errors Errors `json:"errors,omitempty"`
-}
-
-type Data struct {
-	Method string `json:"method"`
-	Status string `json:"status"`
-}
-
-type Errors struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+type SuccessRespose struct {
+	Method string `json:"method,omitempty"`
+	Status string `json:"status,omitempty"`
 }
 
 func main() {
 	// register handler
-	http.HandleFunc("/", indexHandler)
+	http.Handle("/", handler.Handler{Config: &handler.Config{}, H: indexHandler})
 
 	// run http server
 	log.Println("server ready on http://localhost:3030")
